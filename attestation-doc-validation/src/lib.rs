@@ -61,7 +61,11 @@ pub fn validate_attestation_doc_in_cert(
 
     // Validate that the attestation doc's signature can be tied back to the AWS Nitro CA
     let intermediate_certs = create_intermediate_cert_stack(&decoded_attestation_doc.cabundle);
-    cert::validate_cert_trust_chain(&decoded_attestation_doc.certificate, &intermediate_certs)?;
+    cert::validate_cert_trust_chain(
+        &decoded_attestation_doc.certificate,
+        &intermediate_certs,
+        None,
+    )?;
 
     // Validate Cose signature over attestation doc
     let cert = cert::parse_der_cert(&decoded_attestation_doc.certificate)?;
@@ -108,7 +112,11 @@ pub fn validate_attestation_doc_against_cert(
 
     // Validate that the attestation doc's signature can be tied back to the AWS Nitro CA
     let intermediate_certs = create_intermediate_cert_stack(&decoded_attestation_doc.cabundle);
-    cert::validate_cert_trust_chain(&decoded_attestation_doc.certificate, &intermediate_certs)?;
+    cert::validate_cert_trust_chain(
+        &decoded_attestation_doc.certificate,
+        &intermediate_certs,
+        None,
+    )?;
 
     // Validate Cose signature over attestation doc
     let pub_key: nsm::PublicKey = attestation_doc_signing_cert.public_key().try_into()?;
@@ -143,6 +151,7 @@ pub fn validate_attestation_doc_against_cert(
 ///
 pub fn validate_attestation_doc(
     attestation_doc_cose_sign_1_bytes: &[u8],
+    time: Option<u64>,
 ) -> error::AttestResult<()> {
     // Parse attestation doc from cose signature and validate structure
     let (cose_sign_1_decoded, decoded_attestation_doc) =
@@ -152,7 +161,11 @@ pub fn validate_attestation_doc(
 
     // Validate that the attestation doc's signature can be tied back to the AWS Nitro CA
     let intermediate_certs = create_intermediate_cert_stack(&decoded_attestation_doc.cabundle);
-    cert::validate_cert_trust_chain(&decoded_attestation_doc.certificate, &intermediate_certs)?;
+    cert::validate_cert_trust_chain(
+        &decoded_attestation_doc.certificate,
+        &intermediate_certs,
+        time,
+    )?;
 
     // Validate Cose signature over attestation doc
     let pub_key: nsm::PublicKey = attestation_doc_signing_cert.public_key().try_into()?;
@@ -185,7 +198,11 @@ pub fn validate_and_parse_attestation_doc(
 
     // Validate that the attestation doc's signature can be tied back to the AWS Nitro CA
     let intermediate_certs = create_intermediate_cert_stack(&decoded_attestation_doc.cabundle);
-    cert::validate_cert_trust_chain(&decoded_attestation_doc.certificate, &intermediate_certs)?;
+    cert::validate_cert_trust_chain(
+        &decoded_attestation_doc.certificate,
+        &intermediate_certs,
+        None,
+    )?;
 
     // Validate Cose signature over attestation doc
     let pub_key: nsm::PublicKey = attestation_doc_signing_cert.public_key().try_into()?;
@@ -390,5 +407,21 @@ mod test {
         let maybe_attestation_doc =
             validate_attestation_doc_against_cert(&cert, &attestation_doc_bytes);
         assert!(maybe_attestation_doc.is_ok());
+    }
+
+    #[test]
+    fn validate_valid_attestation_doc() {
+        use base64::{engine::general_purpose, Engine as _};
+        let attestation_doc = std::fs::read(std::path::Path::new(
+            &"../test-data/valid-attestation-doc-base64",
+        ))
+        .unwrap();
+        let attestation_doc_str = std::str::from_utf8(&attestation_doc).unwrap();
+        let attestation_doc_bytes = general_purpose::STANDARD
+            .decode(&attestation_doc_str)
+            .unwrap();
+
+        let result = validate_attestation_doc(&attestation_doc_bytes, Some(1695050165));
+        assert!(result.is_ok());
     }
 }
