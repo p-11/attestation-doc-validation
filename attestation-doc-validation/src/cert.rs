@@ -108,9 +108,9 @@ fn get_epoch() -> CertResult<u64> {
 /// Returns a `CertError::UntrustedCert` when the trust chain fails to validate
 /// Returns a `CertError::Openssl` if an error occurred while preparing the context
 pub fn validate_cert_trust_chain(
-    target: &[u8], 
-    intermediates: &[&[u8]], 
-    time: Option<u64>
+    target: &[u8],
+    intermediates: &[&[u8]],
+    time: Option<u64>,
 ) -> CertResult<()> {
     let end_entity_cert = EndEntityCert::try_from(target).map_err(|_| CertError::DecodeError)?;
 
