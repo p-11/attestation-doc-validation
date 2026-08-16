@@ -35,9 +35,10 @@ impl<'a> SigningPublicKey for PublicKey<'a> {
         let curve_string = curve_name.to_string();
         let params = match curve_string.as_str() {
             "1.2.840.10045.3.1.7" => (SignatureAlgorithm::ES256, MessageDigest::Sha256),
-            "1.3.132.0.34" => (SignatureAlgorithm::ES384, MessageDigest::Sha384),
+            // SECURITY FIX: P-384 is not supported. Reject the curve before dispatch to prevent panics on untrusted input.
+            "1.3.132.0.34" => return Err(CoseError::UnsupportedError("P-384 verification is not implemented".to_string())),
             // OID for SECP521R1 to be used with ES512, [not a typo](https://github.com/awslabs/aws-nitro-enclaves-cose/blob/b95205c186e2093dd699d5f6a93ffc4e185e1994/src/crypto/openssl_pkey.rs#L26)
-            "1.3.132.0.35" => (SignatureAlgorithm::ES512, MessageDigest::Sha512),
+            "1.3.132.0.35" => return Err(CoseError::UnsupportedError("P-521 verification is not implemented".to_string())),
             oid => {
                 return Err(CoseError::UnsupportedError(format!(
                     "Received unsupported curve: {oid}"
@@ -90,12 +91,14 @@ impl<'a> PublicKey<'a> {
         impl_signature_verification!(self, p256, digest, signature);
     }
 
-    fn verify_p384_signature(&self, digest: &[u8], signature: &[u8]) -> Result<(), CoseError> {
-        impl_signature_verification!(self, p384, digest, signature);
+    #[allow(clippy::unused_self)]
+    fn verify_p384_signature(&self, _digest: &[u8], _signature: &[u8]) -> Result<(), CoseError> {
+        // SECURITY FIX: Never panic on untrusted attestation input. Return a typed error instead.
+        Err(CoseError::UnsupportedError("P-384 verification is not implemented".to_string()))
     }
 
     #[allow(clippy::unused_self)]
     fn verify_p521_signature(&self, _digest: &[u8], _signature: &[u8]) -> Result<(), CoseError> {
-        unimplemented!();
+        Err(CoseError::UnsupportedError("P-521 verification is not implemented".to_string()))
     }
 }
